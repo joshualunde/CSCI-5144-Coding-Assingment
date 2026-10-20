@@ -228,7 +228,48 @@ static void *handle_client(void *arg) {
                     "{\"error\":\"Could not store value\"}");
             record_operation(method, path + 1, 500);
         }
-    } else if (strcmp(method, "GET") == 0 || strcmp(method, "DELETE") == 0) {
+    } 
+    
+    else if (strcmp(method, "GET") == 0 )
+    {
+        char value[KV_MAX_VALUE + 1];
+        int get_result = kv_get(path + 1, value);
+
+        if (get_result == 0) //successfully found key
+        {
+            char json[KV_MAX_VALUE + 32];
+            int n = snprintf(json, sizeof(json), "{\"value\":\"%s\"}", value);
+
+            // Check whether snprintf() failed or truncated the response.
+            if (n < 0 || (size_t)n >= sizeof(json)) 
+            {
+                respond(client_fd, 500, "Internal Server Error",
+                        "{\"error\":\"Response too large\"}");
+                record_operation(method, path + 1, 500);
+            } else {
+                
+                // Send the value to the client.
+                respond(client_fd, 200, "OK", json);
+                record_operation(method, path + 1, 200);
+            }
+        }
+        // A return value of 1 means the key does not exist.
+        else if (get_result == 1) 
+        {
+            respond(client_fd, 404, "Not Found",
+                    "{\"error\":\"Key not found\"}");
+            record_operation(method, path + 1, 404);
+        } 
+
+        else // -1 return value means an error occurred.
+        { 
+            respond(client_fd, 500, "Internal Server Error",
+                    "{\"error\":\"Could not retrieve value\"}");
+            record_operation(method, path + 1, 500);
+        }
+    }
+
+    else if (strcmp(method, "DELETE") == 0) {
         // These routes are intentionally left for other group members
         respond(client_fd, 501, "Not Implemented",
                 "{\"error\":\"Endpoint not implemented yet\"}");

@@ -152,6 +152,41 @@ int kv_put(const char *key, const char *value) {
     return 0;
 }
 
+//get function
+int kv_get(const char *key,  char *value) 
+{
+     // Make sure the key and output buffer are valid.
+    if (!key || !value || !*key ||
+        strlen(key) > KV_MAX_KEY) {
+        return -1;
+    }
+
+    //lock to prevent modifications while getting data
+    pthread_mutex_lock(&mutex);
+
+    Entry *entry = find_entry(key);
+
+    if (entry == NULL)
+    {
+        /* return 1 if key doesn't exist */
+        pthread_mutex_unlock(&mutex);
+        return 1;
+    }
+    
+    size_t value_buffer = strlen(entry->value);
+
+    if (value_buffer >= KV_MAX_VALUE+1) //buffer size bigger than max
+    {
+        pthread_mutex_unlock(&mutex);
+        return -1;
+    }
+
+    // Copy the value, +1 to include terminating value '/0'
+    memcpy(value, entry->value, value_buffer + 1);
+    pthread_mutex_unlock(&mutex);
+    return 0;
+}
+
 // Free memory and close the persistence file
 void kv_shutdown(void) {
     pthread_mutex_lock(&mutex);

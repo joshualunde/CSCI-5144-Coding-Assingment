@@ -10,6 +10,9 @@ int kv_init(const char *filename);
 /* Add a new key-value pair or update an existing one. */
 int kv_put(const char *key, const char *value);
 
+//get key-value pair
+int kv_get(const char *key,  char *value);
+
 /* Free resources when the server stops. */
 void kv_shutdown(void);
 
