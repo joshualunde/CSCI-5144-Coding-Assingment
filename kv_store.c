@@ -217,6 +217,36 @@ int kv_get(const char *key,  char *value)
     return 0;
 }
 
+// Remove a key. Returns 0 if deleted, 1 if not found, -1 on error
+int kv_delete(const char *key) {
+    if (!key || !*key || strlen(key) > KV_MAX_KEY ||
+        strchr(key, '\t') || strchr(key, '\n')) {
+        return -1;
+    }
+
+    pthread_mutex_lock(&mutex);
+    if (!data_file) {
+        pthread_mutex_unlock(&mutex);
+        return -1;
+    }
+
+    if (find_entry(key) == NULL) {
+        pthread_mutex_unlock(&mutex);
+        return 1;
+    }
+
+    // Save the DELETE before changing the in-memory store
+    if (fprintf(data_file, "D\t%s\n", key) < 0 ||
+        fflush(data_file) != 0) {
+        pthread_mutex_unlock(&mutex);
+        return -1;
+    }
+
+    delete_in_memory(key);
+    pthread_mutex_unlock(&mutex);
+    return 0;
+}
+
 // Free memory and close the persistence file
 void kv_shutdown(void) {
     pthread_mutex_lock(&mutex);
