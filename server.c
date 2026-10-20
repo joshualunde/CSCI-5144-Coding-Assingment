@@ -270,10 +270,20 @@ static void *handle_client(void *arg) {
     }
 
     else if (strcmp(method, "DELETE") == 0) {
-        // These routes are intentionally left for other group members
-        respond(client_fd, 501, "Not Implemented",
-                "{\"error\":\"Endpoint not implemented yet\"}");
-        record_operation(method, path + 1, 501);
+        int delete_result = kv_delete(path + 1);
+
+        if (delete_result == 0) {
+            respond(client_fd, 200, "OK", "{\"message\":\"Key deleted\"}");
+            record_operation(method, path + 1, 200);
+        } else if (delete_result == 1) {
+            respond(client_fd, 404, "Not Found",
+                    "{\"error\":\"Key not found\"}");
+            record_operation(method, path + 1, 404);
+        } else {
+            respond(client_fd, 500, "Internal Server Error",
+                    "{\"error\":\"Could not delete value\"}");
+            record_operation(method, path + 1, 500);
+        }
     } else {
         respond(client_fd, 405, "Method Not Allowed",
                 "{\"error\":\"Unsupported method\"}");

@@ -58,6 +58,21 @@ static int put_in_memory(const char *key, const char *value) {
     return 0;
 }
 
+// Change memory only. Returns 0 if removed, 1 if the key was not found
+static int delete_in_memory(const char *key) {
+    for (Entry **link = &store; *link != NULL; link = &(*link)->next) {
+        if (strcmp((*link)->key, key) == 0) {
+            Entry *dead = *link;
+            *link = dead->next;
+            free(dead->key);
+            free(dead->value);
+            free(dead);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 // Load previous PUT operations from disk when server starts
 int kv_init(const char *filename) {
     if (!filename || data_file) return -1;
@@ -70,29 +85,44 @@ int kv_init(const char *filename) {
     ssize_t length;
     int result = 0;
 
-    // File records look like: P<TAB>key<TAB>value<NEWLINE>
+    // File records look like:
+    //   P<TAB>key<TAB>value<NEWLINE>   (put)
+    //   D<TAB>key<NEWLINE>             (delete)
     while ((length = getline(&line, &capacity, data_file)) != -1) {
-        if (length < 4 || line[length - 1] != '\n' ||
-            strncmp(line, "P\t", 2) != 0) {
+        if (length < 4 || line[length - 1] != '\n') {
             result = -1;
             break;
         }
         line[length - 1] = '\0';
-        char *key = line + 2;
-        char *separator = strchr(key, '\t');
-        if (!separator) {
-            result = -1;
-            break;
-        }
-        *separator = '\0';
-        char *value = separator + 1;
-        if (!*key || strlen(key) > KV_MAX_KEY ||
-            strlen(value) > KV_MAX_VALUE ||
-            put_in_memory(key, value) != 0) {
+
+        if (strncmp(line, "P\t", 2) == 0) {
+            char *key = line + 2;
+            char *separator = strchr(key, '\t');
+            if (!separator) {
+                result = -1;
+                break;
+            }
+            *separator = '\0';
+            char *value = separator + 1;
+            if (!*key || strlen(key) > KV_MAX_KEY ||
+                strlen(value) > KV_MAX_VALUE ||
+                put_in_memory(key, value) != 0) {
+                result = -1;
+                break;
+            }
+        } else if (strncmp(line, "D\t", 2) == 0) {
+            char *key = line + 2;
+            if (!*key || strlen(key) > KV_MAX_KEY || strchr(key, '\t')) {
+                result = -1;
+                break;
+            }
+            delete_in_memory(key);
+        } else {
             result = -1;
             break;
         }
     }
+    
     if (ferror(data_file)) result = -1;
     free(line);
     if (result != 0) {
@@ -183,6 +213,36 @@ int kv_get(const char *key,  char *value)
 
     // Copy the value, +1 to include terminating value '/0'
     memcpy(value, entry->value, value_buffer + 1);
+    pthread_mutex_unlock(&mutex);
+    return 0;
+}
+
+// Remove a key. Returns 0 if deleted, 1 if not found, -1 on error
+int kv_delete(const char *key) {
+    if (!key || !*key || strlen(key) > KV_MAX_KEY ||
+        strchr(key, '\t') || strchr(key, '\n')) {
+        return -1;
+    }
+
+    pthread_mutex_lock(&mutex);
+    if (!data_file) {
+        pthread_mutex_unlock(&mutex);
+        return -1;
+    }
+
+    if (find_entry(key) == NULL) {
+        pthread_mutex_unlock(&mutex);
+        return 1;
+    }
+
+    // Save the DELETE before changing the in-memory store
+    if (fprintf(data_file, "D\t%s\n", key) < 0 ||
+        fflush(data_file) != 0) {
+        pthread_mutex_unlock(&mutex);
+        return -1;
+    }
+
+    delete_in_memory(key);
     pthread_mutex_unlock(&mutex);
     return 0;
 }
