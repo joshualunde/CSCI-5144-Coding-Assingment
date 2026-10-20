@@ -41,21 +41,6 @@ static int put_in_memory(const char *key, const char *value) {
         return 0;
     }
 
-// Change memory only. Returns 0 if removed, 1 if the key was not found
-static int delete_in_memory(const char *key) {
-    for (Entry **link = &store; *link != NULL; link = &(*link)->next) {
-        if (strcmp((*link)->key, key) == 0) {
-            Entry *dead = *link;
-            *link = dead->next;
-            free(dead->key);
-            free(dead->value);
-            free(dead);
-            return 0;
-        }
-    }
-    return 1;
-}
-
     Entry *new_entry = malloc(sizeof(*new_entry));
     if (!new_entry) {
         free(value_copy);
@@ -71,6 +56,21 @@ static int delete_in_memory(const char *key) {
     new_entry->next = store;
     store = new_entry;
     return 0;
+}
+
+// Change memory only. Returns 0 if removed, 1 if the key was not found
+static int delete_in_memory(const char *key) {
+    for (Entry **link = &store; *link != NULL; link = &(*link)->next) {
+        if (strcmp((*link)->key, key) == 0) {
+            Entry *dead = *link;
+            *link = dead->next;
+            free(dead->key);
+            free(dead->value);
+            free(dead);
+            return 0;
+        }
+    }
+    return 1;
 }
 
 // Load previous PUT operations from disk when server starts
