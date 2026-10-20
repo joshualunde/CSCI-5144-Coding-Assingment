@@ -85,29 +85,44 @@ int kv_init(const char *filename) {
     ssize_t length;
     int result = 0;
 
-    // File records look like: P<TAB>key<TAB>value<NEWLINE>
+    // File records look like:
+    //   P<TAB>key<TAB>value<NEWLINE>   (put)
+    //   D<TAB>key<NEWLINE>             (delete)
     while ((length = getline(&line, &capacity, data_file)) != -1) {
-        if (length < 4 || line[length - 1] != '\n' ||
-            strncmp(line, "P\t", 2) != 0) {
+        if (length < 4 || line[length - 1] != '\n') {
             result = -1;
             break;
         }
         line[length - 1] = '\0';
-        char *key = line + 2;
-        char *separator = strchr(key, '\t');
-        if (!separator) {
-            result = -1;
-            break;
-        }
-        *separator = '\0';
-        char *value = separator + 1;
-        if (!*key || strlen(key) > KV_MAX_KEY ||
-            strlen(value) > KV_MAX_VALUE ||
-            put_in_memory(key, value) != 0) {
+
+        if (strncmp(line, "P\t", 2) == 0) {
+            char *key = line + 2;
+            char *separator = strchr(key, '\t');
+            if (!separator) {
+                result = -1;
+                break;
+            }
+            *separator = '\0';
+            char *value = separator + 1;
+            if (!*key || strlen(key) > KV_MAX_KEY ||
+                strlen(value) > KV_MAX_VALUE ||
+                put_in_memory(key, value) != 0) {
+                result = -1;
+                break;
+            }
+        } else if (strncmp(line, "D\t", 2) == 0) {
+            char *key = line + 2;
+            if (!*key || strlen(key) > KV_MAX_KEY || strchr(key, '\t')) {
+                result = -1;
+                break;
+            }
+            delete_in_memory(key);
+        } else {
             result = -1;
             break;
         }
     }
+    
     if (ferror(data_file)) result = -1;
     free(line);
     if (result != 0) {
