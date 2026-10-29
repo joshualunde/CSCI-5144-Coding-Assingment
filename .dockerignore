@@ -1,0 +1,4 @@
+kv_server
+data.wal
+operations.log
+.git
