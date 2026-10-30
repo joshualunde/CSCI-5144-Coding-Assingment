@@ -328,7 +328,12 @@ int main(int argc, char **argv) {
     struct sockaddr_in address = {0};
     address.sin_family = AF_INET;
     address.sin_port = htons((unsigned short)port);
-    inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);
+    const char *bind_addr = getenv("KV_BIND");
+    if (!bind_addr) bind_addr = "127.0.0.1";
+    if (inet_pton(AF_INET, bind_addr, &address.sin_addr) != 1) {
+        fprintf(stderr, "Invalid KV_BIND address: %s\n", bind_addr);
+        return 1;
+    }
     if (bind(listener, (struct sockaddr *)&address, sizeof(address)) != 0 ||
         listen(listener, 64) != 0) {
         perror("bind/listen");
@@ -338,7 +343,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    printf("C key-value server running on http://127.0.0.1:%d\n", port);
+    printf("C key-value server running on http://%s:%d\n", bind_addr, port);
     fflush(stdout);
 
     for (;;) {
