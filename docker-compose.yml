@@ -1,0 +1,23 @@
+x-kv: &kv
+  build: .
+  image: kv-server
+  init: true
+
+services:
+  kv1:
+    <<: *kv
+    ports: ["127.0.0.1:8081:8080"]
+    volumes: ["kv1data:/data"]
+  kv2:
+    <<: *kv
+    ports: ["127.0.0.1:8082:8080"]
+    volumes: ["kv2data:/data"]
+  kv3:
+    <<: *kv
+    ports: ["127.0.0.1:8083:8080"]
+    volumes: ["kv3data:/data"]
+
+volumes:
+  kv1data:
+  kv2data:
+  kv3data:
