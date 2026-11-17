@@ -1,0 +1,6 @@
+KV stores: 2 | keys: 3000 | client threads: 3
+Distribution (keys assigned by consistent hashing):
+  Port 8081: 1508 keys (50.3%)
+  Port 8082: 1492 keys (49.7%)
+PUT: ok=3000 mismatch=0 error=0 time=0.150s throughput=20042.8 ops/s avg=0.15 ms p99=0.30 ms
+GET: ok=3000 mismatch=0 error=0 time=0.136s throughput=22068.2 ops/s avg=0.14 ms p99=0.26 ms
